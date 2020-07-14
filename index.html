@@ -1180,6 +1180,8 @@ dynamicDampingFactor: {
           let num = message.length;
           if (message.length > 20) {
               num = message.length - 20;
+          } else {
+              num = 0;
           }
           for (let i = message.length - 1; i >= num; --i) {
             messgeUnit += message[i] + "<br>";
@@ -1436,6 +1438,8 @@ dynamicDampingFactor: {
                     let num = message.length;
                     if (message.length > 20) {
                         num = message.length - 20;
+                    } else {
+                        num = 0;
                     }
                     for (let i = message.length - 1; i >= num; --i) {
                         messgeUnit += message[i] + "<br>";
