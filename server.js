@@ -370,6 +370,18 @@ console.log("index:"+index);
     });
   });
 
+  socket.on('deleteAll', data => {
+    room[data.roomID].date = new Date();
+    room[data.roomID].voxel.length = 0;
+    room[data.roomID].voxel = [];
+    
+    console.log("deleteAll");
+    io.emit('deleteAll', {
+        roomID: data.roomID,
+        userID: data.userID,
+    });
+  });
+
   socket.on('updatePosition', data => {
       users.set(socket.id, {
           clientID: data.clientID,
@@ -396,6 +408,6 @@ console.log("index:"+index);
 
 
 
-http.listen(80, () => {
-  console.log('listening on :80');
+http.listen(8080, () => {
+  console.log('listening on :8080');
 });

@@ -1083,6 +1083,7 @@ for (const l of lineBox) {
                     // this.materialIndex = l;
                     rollOverMesh.material.color.set(document.getElementById("color1").value);
                     cubeMaterial.push( new THREE.MeshLambertMaterial({ color: document.getElementById("color1").value }) );
+                    color = document.getElementById("color1").value;
 //                    cubeMaterial[cubeMaterial.length - 1].color.set(document.getElementById("color1").value);
                 }, false);
 
@@ -1104,6 +1105,7 @@ for (const l of lineBox) {
                     // this.materialIndex = l;
                     rollOverMesh.material.color.set(document.getElementById("color1").value);
                     cubeMaterial.push( new THREE.MeshLambertMaterial({ color: document.getElementById("color1").value }) );
+                    color = document.getElementById("color1").value
 //                    cubeMaterial[cubeMaterial.length - 1].color.set(document.getElementById("color1").value);
                 }, false);
 
@@ -1118,7 +1120,7 @@ for (const l of lineBox) {
 
 
 				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
-				camera.position.set( 500, 800, 1300 );
+				camera.position.set( 500, 800, 3300 );
 				camera.lookAt( 0, 0, 0 );
 
 				scene = new THREE.Scene();
@@ -1267,6 +1269,25 @@ for (const l of lineBox) {
             lineBox.splice(index2, 1);
         }
       });
+
+      socket.on('deleteAll', data => {
+        if (data.userID !== id && data.roomID == roomid) {
+            for (const o of objects) {
+                scene.remove(o);
+            }
+            objects.length = 0;
+            objects = [];
+            for (const l of lineBox) {
+                scene.remove(l);
+            }
+            lineBox.length = 0;
+            lineBox = [];
+
+            objects.push(plane);
+
+        }
+      });
+
 
       socket.on('updatePosition', data => {
         if (data.clientID !== id && connected) {
@@ -1571,6 +1592,184 @@ document.getElementById("color1").value = "#" + intersect.object.material.color.
                 document.getElementById("deletePut1").style.background = 'white';
                 document.getElementById("deletePut2").style.background = 'white';
             }
+            function deleteAll() {
+                for (const o of objects) {
+                    scene.remove(o);
+                }
+                objects.length = 0;
+                objects = [];
+                for (const l of lineBox) {
+                    scene.remove(l);
+                }
+                lineBox.length = 0;
+                lineBox = [];
+
+                socket.emit('deleteAll', {
+                    userID: id,
+                    roomID: roomid,
+                });
+
+                objects.push(plane);
+            }
+            function autoCreate() {
+                deleteAll();
+                for (let x = -3; x < 4 - 1; ++x) {
+                for (let y = 18;  y < 24   ; ++y) {
+                for (let z = -2; z < 4 - 2; ++z) {
+
+                let blackWhiteCount = 0;
+                let mcolor = "#";
+                for (let i = 0; i < 6; ++i) {
+                    let c = Math.floor( Math.random() * 6 );
+                    let c2 = 0;
+
+                    let s = color.substr(i + 1,1);
+                    c2 = s;
+                    if      ("f" == s) { c2 = 15;}
+                    else if ("e" == s) { c2 = 14;}
+                    else if ("d" == s) { c2 = 13;}
+                    else if ("c" == s) { c2 = 12;}
+                    else if ("b" == s) { c2 = 11;}
+                    else if ("a" == s) { c2 = 10;}
+                    c += Number(c2);
+                    if (c >= 16) {
+                        c = 15;
+                    }
+
+                    if (c <= 8) {
+                        ++blackWhiteCount;
+                    }
+
+                    if (c == 15) {c = "f";}
+                    else if (c == 14) {c = "e";}
+                    else if (c == 13) {c = "d";}
+                    else if (c == 12) {c = "c";}
+                    else if (c == 11) {c = "b";}
+                    else if (c == 10) {c = "a";}
+                    mcolor += '' + c;
+                }
+
+                if ((x == -1 || x == 0) && y == 19 && z == 1) {
+                    if (blackWhiteCount == 6) {
+                        mcolor = "#ffffff";
+                    } else {
+                        mcolor = "#000000";
+                    }
+                }
+                if ((x == -2 || x == 1) && y == 21 && z == 1) {
+                    if (blackWhiteCount == 6) {
+                        mcolor = "#ffffff";
+                    } else {
+                        mcolor = "#000000";
+                    }
+                }
+
+
+                addVoxel({
+                    x: x,
+                    y: y,
+                    z: z,
+                    m: mcolor,
+                });
+                // render();
+
+                }
+                }
+                }
+
+
+                for (let x = -3; x < 6 - 3; ++x) {
+                for (let y = 6;  y < 18   ; ++y) {
+                for (let z = -2; z < 4 - 2; ++z) {
+
+                let mcolor = "#";
+                for (let i = 0; i < 6; ++i) {
+                    let c = Math.floor( Math.random() * 6 );
+                    let c2 = 0;
+
+                    let s = color.substr(i + 1,1);
+                    c2 = s;
+                    if      ("f" == s) { c2 = 15;}
+                    else if ("e" == s) { c2 = 14;}
+                    else if ("d" == s) { c2 = 13;}
+                    else if ("c" == s) { c2 = 12;}
+                    else if ("b" == s) { c2 = 11;}
+                    else if ("a" == s) { c2 = 10;}
+                    c += Number(c2);
+                    if (c >= 16) {
+                        c = 15;
+                    }
+                    if (c == 15) {c = "f";}
+                    else if (c == 14) {c = "e";}
+                    else if (c == 13) {c = "d";}
+                    else if (c == 12) {c = "c";}
+                    else if (c == 11) {c = "b";}
+                    else if (c == 10) {c = "a";}
+                    mcolor += '' + c;
+                }
+
+                addVoxel({
+                    x: x,
+                    y: y,
+                    z: z,
+                    m: mcolor,
+                });
+                // render();
+
+                }
+                }
+                }
+
+                for (let xx = 0; xx < 2; ++xx) {
+                for (let yy = 0; yy < 2; ++yy) {
+
+                
+                for (let x = xx * 12 - 9; x < 6 - 9 + xx * 12; ++x) {
+                for (let y = yy * 12;     y < 6     + yy * 12; ++y) {
+                for (let z = -2;         z < 4 - 2;          ++z) {
+
+                let mcolor = "#";
+                for (let i = 0; i < 6; ++i) {
+                    let c = Math.floor( Math.random() * 6 );
+                    let c2 = 0;
+
+                    let s = color.substr(i + 1,1);
+                    c2 = s;
+                    if      ("f" == s) { c2 = 15;}
+                    else if ("e" == s) { c2 = 14;}
+                    else if ("d" == s) { c2 = 13;}
+                    else if ("c" == s) { c2 = 12;}
+                    else if ("b" == s) { c2 = 11;}
+                    else if ("a" == s) { c2 = 10;}
+                    c += Number(c2);
+                    if (c >= 16) {
+                        c = 15;
+                    }
+                    if (c == 15) {c = "f";}
+                    else if (c == 14) {c = "e";}
+                    else if (c == 13) {c = "d";}
+                    else if (c == 12) {c = "c";}
+                    else if (c == 11) {c = "b";}
+                    else if (c == 10) {c = "a";}
+                    mcolor += '' + c;
+                }
+                addVoxel({
+                    x: x,
+                    y: y,
+                    z: z,
+                    m: mcolor,
+                });
+
+                }
+                }
+                }
+
+                }
+                }
+
+                render();
+
+            }
             function sendMessage() {
                 socket.emit("sendMessage",
                   {
@@ -1622,6 +1821,9 @@ document.getElementById("color1").value = "#" + intersect.object.material.color.
         <button onclick="save();" style="position: absolute; left:100px; top:50px;">保存</button>
         <input type="color" id="color1" value="#ff0000" style="position: absolute; left:150px; top:50px;">
         <input type="color" id="color2" value="#aaaaaa" style="position: absolute; left:150px; top:130px;">
+        <button onclick="autoCreate();" style="position: absolute; left:100px; top:170px;">自動生成</button>
+        <button onclick="deleteAll();" style="position: absolute; left:180px; top:170px;">全部削除</button>
+
         <button onclick="spoit();"      id="spoit"      style="position: absolute; left:120px; top:90px;">スポイト</button>
         <button onclick="deletePut1();" id="deletePut1" style="position: absolute; left:210px; top:50px;">設置</button>
         <button onclick="deletePut2();" id="deletePut2" style="position: absolute; left:210px; top:90px;">削除</button>
