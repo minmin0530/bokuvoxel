@@ -33,6 +33,18 @@ const room = [
   new Room(),
   new Room(),
   new Room(),
+  new Room(),
+  new Room(),
+  new Room(),
+  new Room(),
+  new Room(),
+  new Room(),
+  new Room(),
+  new Room(),
+  new Room(),
+  new Room(),
+  new Room(),
+  new Room(),
 ];
 
 /*
@@ -92,7 +104,7 @@ const transactionKururiDownload = async (data, res) => {
 
 };
 
-const transactionVoxelDownload = async (data, io, socketid) => {
+const transactionVoxelDownload = async (emitid, data, io, socketid) => {
   if (!room[loginUsers[loginUsers.length - 1].roomid].date) {
     let client;
     let login = false;
@@ -102,8 +114,10 @@ const transactionVoxelDownload = async (data, io, socketid) => {
       const collection = db.collection('room');
       const doc = await collection.findOne({roomid:data});
       if (doc) {
+        room[loginUsers[loginUsers.length - 1].roomid].message = doc.message;
         room[loginUsers[loginUsers.length - 1].roomid].voxel = doc.voxel;
       }
+     console.log("roomid:" + loginUsers[loginUsers.length - 1].roomid);
   //        client.close();
     } catch (error) {
       console.log(error);
@@ -112,7 +126,7 @@ const transactionVoxelDownload = async (data, io, socketid) => {
     }
   }
   loginUsers[loginUsers.length - 1].socketid = socketid;
-  io.sockets.connected[socketid].emit('connected', {
+  io.sockets.connected[socketid].emit(emitid, {
     userID: loginUsers[loginUsers.length - 1].tempid,
     roomID: loginUsers[loginUsers.length - 1].roomid,
     color: loginUsers[loginUsers.length - 1].color,
@@ -149,11 +163,14 @@ const transactionVoxelInsert = async (data, res) => {
     client = await MongoClient.connect('mongodb://127.0.0.1:27017', {useNewUrlParser:true, useUnifiedTopology:true});
     const db = client.db(dbName);
     const collection = db.collection('room');
+console.log(data.message);
     const a = await collection.updateOne({
       roomid: data.roomid//, voxel: data.voxel, users: data.users, date:data.date
     }, {$set:data}, true );
     if (a.result.n == 0) {
-      await collection.insertOne(data);
+      await collection.insertOne({roomid: data.roomid, message: data.message, voxel: data.voxel, users: data.users, date: data.date});
+    } else {
+      console.log("insert error");
     }
   } catch (error) {
     console.log(error);
@@ -167,7 +184,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + "/login.html");
+//  res.sendFile(__dirname + "/login.html");
+  res.sendFile(__dirname + "/index.html");
 });
 app.get('/signup', (req, res) => {
   res.sendFile(__dirname + "/signup.html");
@@ -217,7 +235,7 @@ app.post('/signup', async (req, res) => {
 
 
 app.post('/', (req, res) => {
-
+/*
   let user = {
     mail:"", name:"", password:"", roomid:"", tempid:"", socketid:"",
     color: [
@@ -235,6 +253,14 @@ app.post('/', (req, res) => {
   user["name"] = user.mail.substr(0, user.mail.indexOf("@"));
   user["roomid"] = req.body.select;
   transactionKururiDownload(user, res);
+
+  user["roomid"] = 0;
+  user["tempid"] = Math.floor(Math.random() * 100000);
+  room[0].roomid = user.roomid;
+  loginUsers.push(data);
+*/
+  res.sendFile(__dirname + "/index.html");
+
 });
 
 
@@ -259,13 +285,63 @@ io.on('connection', socket => {
       room: room[loginUsers[index].roomid],
     });
   } else {
-
-    transactionVoxelDownload(loginUsers[loginUsers.length - 1].roomid, io, socket.id);
-
+    io.sockets.connected[socket.id].emit('getUserId');
   }
+  socket.on('getUserId', data => {
+    if (data == null) {
+    let user = {
+      mail:"", name:"", password:"", roomid:"", tempid:"", socketid:"",
+      color: [
+        Math.floor( Math.random() * 16 ),
+        Math.floor( Math.random() * 16 ),
+        Math.floor( Math.random() * 16 ),
+        Math.floor( Math.random() * 16 ),
+        Math.floor( Math.random() * 16 ),
+        Math.floor( Math.random() * 16 ),
+      ],
+    };
+    user["roomid"] = 0;
+    user["tempid"] = Math.floor(Math.random() * 100000);
+    room[0].roomid = user.roomid;
+    loginUsers.push(user);
 
+    transactionVoxelDownload('connected', loginUsers[loginUsers.length - 1].roomid, io, socket.id);
+    } else {
+  let index = loginUsers.length - 1;
+/*
+  for (const l of loginUsers) {
+    if (l.tempid == data) {
+      break;
+    }
+    ++index;
+  }
+*/
+console.log("index:"+index);
+    io.sockets.connected[socket.id].emit('connected', {
+      userID: data,//loginUsers[index].tempid,
+      roomID: 0,//loginUsers[index].roomid,
+      //color: loginUsers[index].color,
+      color: [
+        Math.floor( Math.random() * 16 ),
+        Math.floor( Math.random() * 16 ),
+        Math.floor( Math.random() * 16 ),
+        Math.floor( Math.random() * 16 ),
+        Math.floor( Math.random() * 16 ),
+        Math.floor( Math.random() * 16 ),
+      ],
+      room: room[0],
+    });
+    }
+  });
+  socket.on('selectRoom', data => {
+    loginUsers[loginUsers.length - 1].roomid = data;    
+    transactionVoxelDownload('selectRoom', data, io, socket.id);
+
+
+  });
   socket.on('saveRoom', data => {
 //    room[data].date = new Date();
+    room[data].roomid = data;
     transactionVoxelInsert(room[data]);
   });
 
@@ -320,6 +396,6 @@ io.on('connection', socket => {
 
 
 
-http.listen(8080, () => {
-  console.log('listening on :8080');
+http.listen(80, () => {
+  console.log('listening on :80');
 });

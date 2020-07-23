@@ -1041,7 +1041,7 @@ dynamicDampingFactor: {
       var color = 0xffffff;
       var connected = false;
       var players = new Map(); 
-      var socket = io.connect('http://localhost:8080');
+      var socket = io.connect();
 
       var camera, scene, renderer;
       var plane;
@@ -1052,11 +1052,29 @@ dynamicDampingFactor: {
       var lineBox = [];
       var objects = [];
       var controls2;
-      var clearFlag = false;
+      var clearFlag = 0;
 
       window.addEventListener('load', init);
 
 			function init() {
+/*
+for (const o of objects) {
+scene.remove(o);
+}
+objects.length = 0;
+objects = [];
+for (const c of cubeMaterial) {
+c.dispose();
+}
+cubeMaterial.length = 0;
+cubeMaterial = [];
+//cubeGeo.dispose();
+for (const l of lineBox) {
+//scene.remove(l);
+}
+//scene.remove(rollOverMesh);
+//rollOverMaterial.dispose();
+*/
                 document.getElementById("message").focus();
                 document.getElementById("message").addEventListener('click', () => {
                     document.getElementById("message").focus();
@@ -1067,12 +1085,37 @@ dynamicDampingFactor: {
                     cubeMaterial.push( new THREE.MeshLambertMaterial({ color: document.getElementById("color1").value }) );
 //                    cubeMaterial[cubeMaterial.length - 1].color.set(document.getElementById("color1").value);
                 }, false);
+
+
+                document.getElementById("color2").addEventListener('click', () => {
+				scene.background.set(document.getElementById("color2").value);
+                                render();
+                }, false);
+                document.getElementById("color2").addEventListener('change', () => {
+				scene.background.set(document.getElementById("color2").value);
+                                render();
+                }, false);
+
+
+
+
+
                 document.getElementById("color1").addEventListener('change', () => {
                     // this.materialIndex = l;
                     rollOverMesh.material.color.set(document.getElementById("color1").value);
                     cubeMaterial.push( new THREE.MeshLambertMaterial({ color: document.getElementById("color1").value }) );
 //                    cubeMaterial[cubeMaterial.length - 1].color.set(document.getElementById("color1").value);
                 }, false);
+
+
+                document.getElementById("select").addEventListener('click', () => {
+  document.getElementById("select").focus();
+}, false);
+                document.getElementById("select").addEventListener('change', () => {
+                    roomid = document.getElementById("select").select.value;
+                    socket.emit("selectRoom", roomid);
+                }, false);
+
 
 				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
 				camera.position.set( 500, 800, 1300 );
@@ -1147,6 +1190,9 @@ dynamicDampingFactor: {
       
       socket.on('disconnect', () => {});
 
+      socket.on('getUserId', () => {
+        socket.emit('getUserId', id);
+      });
       socket.on('connected', data => {
           id = data.userID;
           roomid = data.roomID;
@@ -1167,12 +1213,15 @@ dynamicDampingFactor: {
 
           rollOverMesh.material = new THREE.MeshLambertMaterial({ color: color, opacity: 0.5, transparent: true  });
           cubeMaterial.push( new THREE.MeshLambertMaterial({ color: color }) );
-          
+          document.getElementById("color1").value = color;
+ 
         //   data.room.voxel
           for (const voxel of data.room.voxel) {
               addVoxel(voxel);
           }
 
+          message.length = 0;
+          message = [];
           let messgeUnit = "";
           for (let j = 0; j < data.room.message.length; ++j) {
             message.push(data.room.message[j]);
@@ -1223,6 +1272,77 @@ dynamicDampingFactor: {
         if (data.clientID !== id && connected) {
           updatePosition(data);
         }
+      });
+socket.on('selectRoom', (data) => {
+ 
+for (const o of objects) {
+scene.remove(o);
+}
+objects.length = 0;
+objects = [];
+for (const c of cubeMaterial) {
+c.dispose();
+}
+cubeMaterial.length = 0;
+cubeMaterial = [];
+
+for (const l of lineBox) {
+scene.remove(l);
+}
+lineBox.length = 0;
+lineBox = [];
+
+    rollOverMesh.position.set(25, 25, 25);
+    rollOverMesh.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
+objects.push( plane );
+
+ //      init();
+//        console.log(data);
+        id = data.userID;
+          roomid = data.roomID;
+          console.log(id);
+          connected = true;
+
+          color = "#";
+          for (let i = 0; i < 6; ++i) {
+              let c = data.color[i];
+              if (c == 15) {c = "f";}
+              else if (c == 14) {c = "e";}
+              else if (c == 13) {c = "d";}
+              else if (c == 12) {c = "c";}
+              else if (c == 11) {c = "b";}
+              else if (c == 10) {c = "a";}
+              color += '' + c;
+          }
+
+          rollOverMesh.material = new THREE.MeshLambertMaterial({ color: color, opacity: 0.5, transparent: true  });
+          cubeMaterial.push( new THREE.MeshLambertMaterial({ color: color }) );
+          document.getElementById("color1").value = color;
+        //   data.room.voxel
+          for (const voxel of data.room.voxel) {
+              addVoxel(voxel);
+          }
+
+          message.length = 0;
+          message = [];
+          let messgeUnit = "";
+console.log(data.room);
+          for (let j = 0; j < data.room.message.length; ++j) {
+            message.push(data.room.message[j]);
+          }
+          let num = message.length;
+          if (message.length > 20) {
+              num = message.length - 20;
+          } else {
+              num = 0;
+          }
+          for (let i = message.length - 1; i >= num; --i) {
+            messgeUnit += message[i] + "<br>";
+          }
+          
+          document.getElementById("chat").innerHTML = messgeUnit;
+
+          render();
       });
 
       function addUser(data) {
@@ -1322,8 +1442,14 @@ dynamicDampingFactor: {
 						// create cube
 
 					} else {
-
-                        if (clearFlag) {
+                        if (clearFlag == 2) {
+                            if (intersect.object !== plane) {
+//console.log(intersect.object.material.color.getHexString());
+document.getElementById("color1").value = "#" + intersect.object.material.color.getHexString();
+ rollOverMesh.material.color.set(document.getElementById("color1").value);
+ cubeMaterial.push( new THREE.MeshLambertMaterial({ color: document.getElementById("color1").value }) );
+                            }
+                        } else if (clearFlag == 1) {
 
                             if (intersect.object !== plane) {
                                 scene.remove(intersect.object);
@@ -1413,13 +1539,37 @@ dynamicDampingFactor: {
             function load() {
                 socket.emit("loadRoom", roomid);
             }
-            function deletePut() {
-                clearFlag = !clearFlag;
-                if (clearFlag) {
-                    document.getElementById("deletePut").innerHTML = '設置';
+            function deletePut1() {
+                clearFlag = 0;
+                if (clearFlag == 0) {
+                document.getElementById("spoit").style.background = 'white';
+                    document.getElementById("deletePut1").innerHTML = '設置';
+                    document.getElementById("deletePut1").style.background = 'red';  
+                    document.getElementById("deletePut2").style.background = 'white';
                 } else {
-                    document.getElementById("deletePut").innerHTML = '削除';
+                    document.getElementById("deletePut2").innerHTML = '削除';
+                    document.getElementById("deletePut2").style.background = 'red';
+                    document.getElementById("deletePut1").style.background = 'white';
                 }
+            }
+            function deletePut2() {
+                clearFlag = 1;
+                if (clearFlag == 0) {
+                    document.getElementById("deletePut1").innerHTML = '設置';
+                    document.getElementById("deletePut1").style.background = 'red';  
+                    document.getElementById("deletePut2").style.background = 'white';
+                } else {
+                document.getElementById("spoit").style.background = 'white';
+                    document.getElementById("deletePut2").innerHTML = '削除';
+                    document.getElementById("deletePut2").style.background = 'red';
+                    document.getElementById("deletePut1").style.background = 'white';
+                }
+            }
+            function spoit() {
+                clearFlag = 2;
+                document.getElementById("spoit").style.background = 'red';
+                document.getElementById("deletePut1").style.background = 'white';
+                document.getElementById("deletePut2").style.background = 'white';
             }
             function sendMessage() {
                 socket.emit("sendMessage",
@@ -1450,10 +1600,31 @@ dynamicDampingFactor: {
         </script>
     </head>
     <body>
-        <button onclick="save();" style="position: absolute; left:100px; top:200px;">保存</button>
-        <button onclick="load();" style="position: absolute; left:150px; top:200px;">読込</button>
-        <input type="color" id="color1" value="#ff0000" style="position: absolute; left:200px; top:200px;">
-        <button onclick="deletePut();" id="deletePut" style="position: absolute; left:260px; top:200px;">削除</button>
+        <form id="select" name="select" style="position: absolute; left:20px; top:50px;">
+            <input type="radio" name="select" value="0" checked>room1<br>
+            <input type="radio" name="select" value="1">room2<br>
+            <input type="radio" name="select" value="2">room3<br>
+            <input type="radio" name="select" value="3">room4<br>
+            <input type="radio" name="select" value="4">room5<br>
+            <input type="radio" name="select" value="5">room6<br>
+            <input type="radio" name="select" value="6">room7<br>
+            <input type="radio" name="select" value="7">room8<br>
+            <input type="radio" name="select" value="8">room9<br>
+            <input type="radio" name="select" value="9">room10<br>
+            <input type="radio" name="select" value="10">room11<br>
+            <input type="radio" name="select" value="11">room12<br>
+            <input type="radio" name="select" value="12">room13<br>
+            <input type="radio" name="select" value="13">room14<br>
+            <input type="radio" name="select" value="14">room15<br>
+            <input type="radio" name="select" value="15">room16<br>
+        </form>
+
+        <button onclick="save();" style="position: absolute; left:100px; top:50px;">保存</button>
+        <input type="color" id="color1" value="#ff0000" style="position: absolute; left:150px; top:50px;">
+        <input type="color" id="color2" value="#aaaaaa" style="position: absolute; left:150px; top:130px;">
+        <button onclick="spoit();"      id="spoit"      style="position: absolute; left:120px; top:90px;">スポイト</button>
+        <button onclick="deletePut1();" id="deletePut1" style="position: absolute; left:210px; top:50px;">設置</button>
+        <button onclick="deletePut2();" id="deletePut2" style="position: absolute; left:210px; top:90px;">削除</button>
         <input type="text" id="message" style="position: absolute; right:150px; top:20px; width:300px;">
         <button onclick="sendMessage();" style="position: absolute; right:100px; top:20px;">送信</button>
         <div id="chat" cols="50" rows="50" style="position: absolute; right:150px; top:50px; width:300px;">chat</div>
