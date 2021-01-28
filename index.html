@@ -5,7 +5,7 @@
 
         <!-- <link rel="stylesheet" href="css/style.css"> -->        
         <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/106/three.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.1.0/socket.io.js"></script>
 <script type="text/javascript">
 THREE.OrbitControls = function ( object, domElement ) {
 
@@ -1036,12 +1036,101 @@ dynamicDampingFactor: {
 } );
     
 
+
+
+function checkStatus(res) {
+    if (res.status >= 200 && res.status < 300) {
+      return res
+    } else {
+      const error = new Error(res.statusText);
+      error.response = res;
+      throw error
+    }
+  }
+  
+function parseXML(response) {
+    return response.json().then((stringContainingXMLSource) => {
+        const parser = new DOMParser();
+        const posListArray = [];
+
+        for (let j = 0; j < stringContainingXMLSource.length; j++) {
+        for (let i = 0; i < stringContainingXMLSource[j]['core:CityModel']['core:cityObjectMember'].length; i++) {
+            posListArray.push(stringContainingXMLSource[j]['core:CityModel']['core:cityObjectMember'][i]['bldg:Building'][0]['bldg:lod0RoofEdge'][0]['gml:MultiSurface'][0]['gml:surfaceMember'][0]['gml:Polygon'][0]['gml:exterior'][0]['gml:LinearRing'][0]['gml:posList'][0].split(' '));
+        }
+        }
+
+
+      // 箱を作成
+
+      const size = 50;
+      for (const posList of posListArray) {
+        for (let i = 0; i < posList.length; i += 3) {
+            const x = ((posList[i + 0] * 100) % 3554) * 50000 - 6000;
+            const y = (posList[i + 2] * 20) - 100;
+            const z = ((posList[i + 1] * 100) % 13971) * 50000 - 20000;
+            
+            const city_material = new THREE.MeshLambertMaterial({ color: 0x888888 })
+            for (let j = 0; j < y / 50 + 1; j++) {
+                var voxel = new THREE.Mesh( cubeGeo, city_material );
+                voxel.position.set(
+                    x - (x % 50) + 25,
+                    j * 50 + 25,
+                    z - (z % 50) + 25
+                );
+                voxel.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+                scene.add( voxel );
+                // var edges = new THREE.EdgesGeometory(voxel, 0x000000);
+                var edges = new THREE.EdgesGeometry(cubeGeo);
+                lineBox.push( new THREE.LineSegments( edges, new THREE.LineBasicMaterial({ color: 0x000000 })) );
+                lineBox[lineBox.length - 1].position.set(
+                    x - (x % 50) + 25,
+                    j * 50 + 25,
+                    z - (z % 50) + 25
+                );
+                lineBox[lineBox.length - 1].position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );						
+                scene.add(lineBox[lineBox.length - 1]);
+
+                objects.push( voxel );
+
+
+
+
+
+
+
+
+
+
+
+
+
+                // const geometry = new THREE.BoxGeometry(size, size, size);
+                // const material = new THREE.MeshNormalMaterial();
+                // const box = new THREE.Mesh(geometry, material);
+                // box.position.set(
+                //     x - (x % 50) + 25,
+                //     j * 50 + 25,
+                //     z - (z % 50) + 25              
+                // );
+                // scene.add(box);
+            }
+        }
+      }
+
+    });
+}
+
+
+
+
+
+
       var id = null;
       var roomid = null;
       var color = 0xffffff;
       var connected = false;
       var players = new Map(); 
-      var socket = io.connect();
+      var socket = io();
 
       var camera, scene, renderer;
       var plane;
@@ -1053,6 +1142,13 @@ dynamicDampingFactor: {
       var objects = [];
       var controls2;
       var clearFlag = 0;
+
+
+
+     function loop() {
+        render();
+        requestAnimationFrame(loop);
+    }
 
       window.addEventListener('load', init);
 
@@ -1110,16 +1206,9 @@ for (const l of lineBox) {
                 }, false);
 
 
-                document.getElementById("select").addEventListener('click', () => {
-  document.getElementById("select").focus();
-}, false);
-                document.getElementById("select").addEventListener('change', () => {
-                    roomid = document.getElementById("select").select.value;
-                    socket.emit("selectRoom", roomid);
-                }, false);
 
 
-				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
+				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 50000 );
 				camera.position.set( 500, 800, 3300 );
 				camera.lookAt( 0, 0, 0 );
 
@@ -1140,7 +1229,7 @@ for (const l of lineBox) {
 
 				// grid
 
-				var gridHelper = new THREE.GridHelper( 1000, 20 );
+				var gridHelper = new THREE.GridHelper( 25000, 500 );
 				scene.add( gridHelper );
 
 				//
@@ -1148,7 +1237,7 @@ for (const l of lineBox) {
 				raycaster = new THREE.Raycaster();
 				mouse = new THREE.Vector2();
 
-				var geometry = new THREE.PlaneBufferGeometry( 1000, 1000 );
+				var geometry = new THREE.PlaneBufferGeometry( 25000, 25000 );
 				geometry.rotateX( - Math.PI / 2 );
 
 				plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
@@ -1182,7 +1271,33 @@ for (const l of lineBox) {
 
 				window.addEventListener( 'resize', onWindowResize, false );
 
-			}
+
+
+
+                fetch("/apinum").then( (response) => response.json() ).then( (data) => {
+
+                    let count = 0;
+                    for (const d of data) {
+                        // let button = document.createElement("button");
+                        // button.innerHTML = d;
+                        // button.onclick = () => {
+                            fetch("/api" + d).then(checkStatus)
+                            .then(parseXML)
+                            .catch((error) => {
+                            console.log('request failed', error)
+                            });
+
+                        // }
+                        // document.getElementById("buttons").appendChild(button);
+                        // count++;
+                        // if (count > 20) {
+                        //     break;
+                        // }
+                    }
+                });
+
+                loop();
+            }
 
 
     //   socket.emit('connected', {
@@ -1798,35 +1913,18 @@ document.getElementById("color1").value = "#" + intersect.object.material.color.
             });
         </script>
     </head>
-    <body>
-        <form id="select" name="select" style="position: absolute; left:20px; top:50px;">
-            <input type="radio" name="select" value="0" checked>room1<br>
-            <input type="radio" name="select" value="1">room2<br>
-            <input type="radio" name="select" value="2">room3<br>
-            <input type="radio" name="select" value="3">room4<br>
-            <input type="radio" name="select" value="4">room5<br>
-            <input type="radio" name="select" value="5">room6<br>
-            <input type="radio" name="select" value="6">room7<br>
-            <input type="radio" name="select" value="7">room8<br>
-            <input type="radio" name="select" value="8">room9<br>
-            <input type="radio" name="select" value="9">room10<br>
-            <input type="radio" name="select" value="10">room11<br>
-            <input type="radio" name="select" value="11">room12<br>
-            <input type="radio" name="select" value="12">room13<br>
-            <input type="radio" name="select" value="13">room14<br>
-            <input type="radio" name="select" value="14">room15<br>
-            <input type="radio" name="select" value="15">room16<br>
-        </form>
+    <body style="margin: 0;">
+        <h1 style="position: absolute; left:0px; top:0px;">大田区南六郷三丁目 <span style="color: red;">shift + click で設置</span></h1>
+        <!-- <div id="buttons" style="position: absolute; left:10px; top:50px;"></div> -->
+        <!-- <button onclick="save();" style="position: absolute; left:100px; top:50px;">保存</button> -->
+        <input type="color" id="color1" value="#ff0000" style="position: absolute; left:260px; top:100px;">
+        <input type="color" id="color2" value="#aaaaaa" style="position: absolute; left:20px; top:100px;">
+        <!-- <button onclick="autoCreate();" style="position: absolute; left:100px; top:170px;">自動生成</button>
+        <button onclick="deleteAll();" style="position: absolute; left:180px; top:170px;">全部削除</button> -->
 
-        <button onclick="save();" style="position: absolute; left:100px; top:50px;">保存</button>
-        <input type="color" id="color1" value="#ff0000" style="position: absolute; left:150px; top:50px;">
-        <input type="color" id="color2" value="#aaaaaa" style="position: absolute; left:150px; top:130px;">
-        <button onclick="autoCreate();" style="position: absolute; left:100px; top:170px;">自動生成</button>
-        <button onclick="deleteAll();" style="position: absolute; left:180px; top:170px;">全部削除</button>
-
-        <button onclick="spoit();"      id="spoit"      style="position: absolute; left:120px; top:90px;">スポイト</button>
-        <button onclick="deletePut1();" id="deletePut1" style="position: absolute; left:210px; top:50px;">設置</button>
-        <button onclick="deletePut2();" id="deletePut2" style="position: absolute; left:210px; top:90px;">削除</button>
+        <button onclick="spoit();"      id="spoit"      style="position: absolute; left:80px; top:100px;">スポイト</button>
+        <button onclick="deletePut1();" id="deletePut1" style="position: absolute; left:210px; top:100px;">設置</button>
+        <button onclick="deletePut2();" id="deletePut2" style="position: absolute; left:160px; top:100px;">削除</button>
         <input type="text" id="message" style="position: absolute; right:150px; top:20px; width:300px;">
         <button onclick="sendMessage();" style="position: absolute; right:100px; top:20px;">送信</button>
         <div id="chat" cols="50" rows="50" style="position: absolute; right:150px; top:50px; width:300px;">chat</div>

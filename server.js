@@ -7,6 +7,8 @@ const assert = require('assert');
 const { dirname } = require('path');
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
+const xml2js = require( "xml2js" );
+const fs = require( "fs" );
 
 const users = new Map();
 const loginUsers = [];
@@ -29,22 +31,7 @@ class Room {
 }
 
 const room = [
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
-  new Room(),
+  new Room()
 ];
 
 /*
@@ -73,7 +60,7 @@ const transactionKururiDownload = async (data, res) => {
             if (doc.password == data.password) {
               login = true;
               data["tempid"] = Math.floor(Math.random() * 100000);
-              room[data.roomid].roomid = data.roomid;
+              room[0].roomid = 0;
               loginUsers.push(data);
               res.sendFile(__dirname + "/index.html");
             }
@@ -126,7 +113,7 @@ const transactionVoxelDownload = async (emitid, data, io, socketid) => {
     }
   }
   loginUsers[loginUsers.length - 1].socketid = socketid;
-  io.sockets.connected[socketid].emit(emitid, {
+  io.to(socketid).emit(emitid, {
     userID: loginUsers[loginUsers.length - 1].tempid,
     roomID: loginUsers[loginUsers.length - 1].roomid,
     color: loginUsers[loginUsers.length - 1].color,
@@ -165,10 +152,10 @@ const transactionVoxelInsert = async (data, res) => {
     const collection = db.collection('room');
 console.log(data.message);
     const a = await collection.updateOne({
-      roomid: data.roomid//, voxel: data.voxel, users: data.users, date:data.date
+      roomid: 0//, voxel: data.voxel, users: data.users, date:data.date
     }, {$set:data}, true );
     if (a.result.n == 0) {
-      await collection.insertOne({roomid: data.roomid, message: data.message, voxel: data.voxel, users: data.users, date: data.date});
+      await collection.insertOne({roomid: 0, message: data.message, voxel: data.voxel, users: data.users, date: data.date});
     } else {
       console.log("insert error");
     }
@@ -182,6 +169,62 @@ console.log(data.message);
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
+
+app.get("/apinum", (request, response) => {
+//  const xmlData = fs.readFileSync( __dirname + "/assets/bldg/53392546_bldg_6697.gml","utf-8" );
+
+  fs.readdir(__dirname + "/assets/bldg", function(err, files){
+      if (err) throw err;
+
+
+      for (const file of files) {
+      app.get("/api" + file, (request, response) => {
+          let count = 0;
+          let result = [];
+//            const xmlData = fs.readFileSync( __dirname + "/assets/bldg/53392546_bldg_6697.gml","utf-8" );
+      
+          fs.readdir(__dirname + "/assets/bldg", function(err, files){
+              if (err) throw err;
+              // var fileList = files.filter(function(file){
+              //     return fs.statSync(file).isFile() && /.*\.gml$/.test(file); //絞り込み
+              // })
+      
+              const data = fs.readFileSync(__dirname + "/assets/bldg/" + file);
+      
+              // for (const d of data) {
+              xml2js.parseString( data , function (err, result2) {
+                  if( err ) {
+                      console.log( err.message );
+                  }else{
+                      result.push(result2);
+                      // console.log(count--);
+                      response.json(result);
+                  }
+                      
+              });
+          
+              // }
+      
+      
+          });
+      });
+      }
+
+      // var fileList = files.filter(function(file){
+      //     return fs.statSync(file).isFile() && /.*\.gml$/.test(file); //絞り込み
+      // })
+      console.log(files);
+      response.json(files);
+
+  });
+});
+
+
+
+
+
+
 
 app.get('/', (req, res) => {
 //  res.sendFile(__dirname + "/login.html");
@@ -278,14 +321,14 @@ io.on('connection', socket => {
   }
 
   if (connected) {
-    io.sockets.connected[socket.id].emit('connected', {
+    io.to(socket.id).emit('connected', {
       userID: loginUsers[index].tempid,
       roomID: loginUsers[index].roomid,
       color: loginUsers[index].color,
       room: room[loginUsers[index].roomid],
     });
   } else {
-    io.sockets.connected[socket.id].emit('getUserId');
+    io.to(socket.id).emit('getUserId');
   }
   socket.on('getUserId', data => {
     if (data == null) {
@@ -317,7 +360,7 @@ io.on('connection', socket => {
   }
 */
 console.log("index:"+index);
-    io.sockets.connected[socket.id].emit('connected', {
+  io.to(socket.id).emit('connected', {
       userID: data,//loginUsers[index].tempid,
       roomID: 0,//loginUsers[index].roomid,
       //color: loginUsers[index].color,
@@ -349,35 +392,35 @@ console.log("index:"+index);
   });
 
   socket.on('put', data => {
-    room[data.roomID].date = new Date();
-    room[data.roomID].voxel.push(data.voxel);
+    room[0].date = new Date();
+    room[0].voxel.push(data.voxel);
     console.log(data.voxel);
     io.emit('put', {
-        roomID: data.roomID,
+        roomID: 0,
         userID: data.userID,
         voxel: data.voxel,
     });
   });
 
   socket.on('deleteVoxel', data => {
-    room[data.roomID].date = new Date();
-    room[data.roomID].voxel.splice(data.index, 1);
+    room[0].date = new Date();
+    room[0].voxel.splice(data.index, 1);
     console.log(data.voxel);
     io.emit('deleteVoxel', {
-        roomID: data.roomID,
+        roomID: 0,
         userID: data.userID,
         index: data.index,
     });
   });
 
   socket.on('deleteAll', data => {
-    room[data.roomID].date = new Date();
-    room[data.roomID].voxel.length = 0;
-    room[data.roomID].voxel = [];
+    room[0].date = new Date();
+    room[0].voxel.length = 0;
+    room[0].voxel = [];
     
     console.log("deleteAll");
     io.emit('deleteAll', {
-        roomID: data.roomID,
+        roomID: 0,
         userID: data.userID,
     });
   });
@@ -391,7 +434,7 @@ console.log("index:"+index);
   });
 
   socket.on('sendMessage', data => {
-    room[data.roomID].message.push(data.message);
+    room[0].message.push(data.message);
     io.emit('recieveMessage', data);
   });
   // socket.on("disconnect",  () => {
